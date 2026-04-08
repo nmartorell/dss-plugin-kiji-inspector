@@ -1,7 +1,7 @@
 import os
 
-from dataiku.runnables import Runnable
-from dataiku.runnables import ResultTable
+from dataiku.runnables import ResultTable, Runnable
+
 
 class MyRunnable(Runnable):
     """The base interface for a Python runnable"""
@@ -15,10 +15,10 @@ class MyRunnable(Runnable):
         self.project_key = project_key
         self.config = config
         self.plugin_config = plugin_config
-        
+
     def get_progress_target(self):
         """
-        If the runnable will return some progress info, have this function return a tuple of 
+        If the runnable will return some progress info, have this function return a tuple of
         (target, unit) where unit is one of: SIZE, FILES, RECORDS, NONE
         """
         return None
@@ -31,13 +31,7 @@ class MyRunnable(Runnable):
         resource_folder = os.getenv("DKU_CUSTOM_RESOURCE_FOLDER")
 
         result = ResultTable()
-        result.set_name("download_kiji_proxy_environment")
-        result.set_header("Runnable environment")
-        result.add_column("variable", "Variable")
-        result.add_column("value", "Value")
-        result.add_record({
-            "variable": "DKU_CUSTOM_RESOURCE_FOLDER",
-            "value": resource_folder or ""
-        })
+        result.add_column("variable", "Variable", "STRING")
+        result.add_column("value", "Value", "STRING")
+        result.add_record(["DKU_CUSTOM_RESOURCE_FOLDER", resource_folder or ""])
         return result
-        
