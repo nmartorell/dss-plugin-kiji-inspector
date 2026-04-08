@@ -1,5 +1,7 @@
-# This file is the actual code for the Python runnable manage-inspector-process
+import os
+
 from dataiku.runnables import Runnable
+from dataiku.runnables import ResultTable
 
 class MyRunnable(Runnable):
     """The base interface for a Python runnable"""
@@ -26,5 +28,16 @@ class MyRunnable(Runnable):
         Do stuff here. Can return a string or raise an exception.
         The progress_callback is a function expecting 1 value: current progress
         """
-        raise Exception("unimplemented")
+        resource_folder = os.getenv("DKU_CUSTOM_RESOURCE_FOLDER")
+
+        result = ResultTable()
+        result.set_name("download_kiji_proxy_environment")
+        result.set_header("Runnable environment")
+        result.add_column("variable", "Variable")
+        result.add_column("value", "Value")
+        result.add_record({
+            "variable": "DKU_CUSTOM_RESOURCE_FOLDER",
+            "value": resource_folder or ""
+        })
+        return result
         
