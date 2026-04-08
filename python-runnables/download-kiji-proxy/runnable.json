@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "label": "Download Kiji Proxy",
+    "description": "",
+    "icon": "fas fa-download"
+  },
+  "impersonate": false,
+  "params": [
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "SELECT",
+      "mandatory": true,
+      "defaultValue": "list_downloaded_versions",
+      "selectChoices": [
+        {
+          "value": "list_downloaded_versions",
+          "label": "List downloaded versions"
+        },
+        {
+          "value": "download",
+          "label": "Download"
+        }
+      ]
+    },
+    {
+      "name": "github_repo",
+      "label": "GitHub Repo",
+      "type": "STRING",
+      "defaultValue": "dataiku/kiji-proxy",
+      "visibilityCondition": "model.action == 'download'"
+    },
+    {
+      "name": "kiji_version",
+      "label": "Kiji Version",
+      "type": "STRING",
+      "defaultValue": "v0.4.9",
+      "visibilityCondition": "model.action == 'download'"
+    }
+  ],
+  "permissions": [],
+  "requiresGlobalAdmin": true,
+  "resultType": "RESULT_TABLE",
+  "macroRoles": []
+}
