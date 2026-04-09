@@ -71,16 +71,18 @@ class CustomGuardrail(BaseGuardrail):
         env["PROXYPORT"] = self.kiji_port
 
         command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
+        kiji_log_file_path = os.path.join(self.kiji_home, "kiji_proxy.log")
 
         LOGGER.info("Starting Kiji proxy with command: %s", command)
-        subprocess.Popen(
-            command,
-            start_new_session=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            env=env,
-        )
+        with open(kiji_log_file_path, "w") as f:
+            subprocess.Popen(
+                command,
+                start_new_session=True,
+                stdout=f,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                env=env,
+            )
         """
         with open(os.devnull, "rb") as devnull_in, open(os.devnull, "wb") as devnull_out:
             subprocess.Popen(
