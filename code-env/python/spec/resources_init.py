@@ -6,7 +6,12 @@ import stat
 import subprocess
 import urllib.request
 
-from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
+from dataiku.code_env_resources import (
+    clear_all_env_vars,
+    delete_env_var,
+    set_env_path,
+    set_env_var,
+)
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
@@ -58,9 +63,9 @@ def main():
     # Clear environment variables defined in previous runs
     clear_all_env_vars()
 
-    # Clear and/or create Kiji download directory
-    set_env_path("DEST_DIR_PATH", DEST_DIR_NAME)
-    dest_dir = os.environ["DEST_DIR_PATH"]
+    # Clear and/or create Kiji home directory
+    set_env_path("KIJI_HOME", DEST_DIR_NAME)
+    dest_dir = os.environ["KIJI_HOME"]
 
     if os.path.isdir(dest_dir):
         shutil.rmtree(dest_dir)
@@ -92,9 +97,6 @@ def main():
 
     make_executable(os.path.join(dest_dir, "bin", "kiji-proxy"))
     make_executable(os.path.join(dest_dir, "run.sh"))
-
-    # Add env var (so it's easy to start Kiji)
-    set_env_var("KIJI_PATH", os.path.join(dest_dir, "bin", "kiji-proxy"))
 
     print("Installed Kiji proxy {} to {}".format(version, dest_dir))
 
