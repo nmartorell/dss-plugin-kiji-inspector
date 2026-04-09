@@ -70,12 +70,21 @@ class CustomGuardrail(BaseGuardrail):
         env = os.environ.copy()
         env["PROXYPORT"] = self.kiji_port
 
-        command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
+        # command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
 
         LOGGER.info("Starting Kiji proxy with command: %s", command)
+        subprocess.Popen(
+            [os.path.join(self.kiji_home, "bin", "kiji-proxy")],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            env=env,
+        )
+        """
         with open(os.devnull, "rb") as devnull_in, open(os.devnull, "wb") as devnull_out:
             subprocess.Popen(
-                command,
+                os.path.join(self.kiji_home, "bin", "kiji-proxy"),
                 cwd=self.kiji_home,
                 env=env,
                 stdin=devnull_in,
@@ -84,6 +93,7 @@ class CustomGuardrail(BaseGuardrail):
                 close_fds=True,
                 start_new_session=True,
             )
+        """
 
     def _check_message(self, message):
         return self._post_json("/api/pii/check", {"message": message})
