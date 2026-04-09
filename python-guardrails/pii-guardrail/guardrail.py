@@ -30,15 +30,8 @@ class CustomGuardrail(BaseGuardrail):
 
         for message in user_messages:
             result = self._mask_pii(message.get("content", ""))
+            message["content"] = result["masked_message"]
             LOGGER.info("Kiji proxy result: %s", result)
-
-            if self._should_block(result):
-                return {
-                    "queryGuardrailResponse": {
-                        "action": "BLOCK",
-                        "reason": "Blocked by Kiji proxy",
-                    }
-                }
 
         return input
 
