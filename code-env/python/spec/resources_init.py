@@ -4,7 +4,6 @@ import os
 import shutil
 import stat
 import subprocess
-import tarfile
 import urllib.request
 
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
@@ -75,6 +74,8 @@ def main():
     checksum_url = "{}.sha256".format(archive_url)
 
     # Download Kiji and verify checksum
+    print(f"Downloading Kiji proxy {tag} from KIJI_REPO")
+
     archive_path = os.path.join(dest_dir, archive_name)
     checksum_path = archive_path + ".sha256"
 

@@ -16,7 +16,7 @@
       "name": "port",
       "label": "Port",
       "type": "INT",
-      "description": "Unix port in which Kiji is exposed.",
+      "description": "Unix port on which to expose Kiji Proxy.",
       "defaultValue": 9050,
       "mandatory": true,
       "minI": 1023,
