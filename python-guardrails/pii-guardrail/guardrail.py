@@ -77,7 +77,6 @@ class CustomGuardrail(BaseGuardrail):
         with open(kiji_log_file_path, "w") as f:
             subprocess.Popen(
                 command,
-                start_new_session=True,
                 stdout=f,
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,

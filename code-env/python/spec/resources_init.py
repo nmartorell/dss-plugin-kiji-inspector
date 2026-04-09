@@ -5,9 +5,8 @@ import shutil
 import stat
 import subprocess
 import urllib.request
-from platform import libc_ver
 
-from dataiku.code_env_resources import clear_all_env_vars, set_env_path
+from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
@@ -100,6 +99,7 @@ def main():
         "ONNXRUNTIME_SHARED_LIBRARY_PATH",
         f"{DEST_DIR_NAME}/lib/libonnxruntime.so.1.24.2",
     )
+    set_env_var("TRANSPARENT_PROXY_ENABLED", False)
 
     print("Installed Kiji proxy {} to {}".format(version, dest_dir))
 
