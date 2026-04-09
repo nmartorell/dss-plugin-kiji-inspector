@@ -19,26 +19,28 @@ class CustomGuardrail(BaseGuardrail):
         self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
 
     def process(self, input, trace):
-        if "completionQuery" not in input:
+        # Extract text to mask
+        if ("completionQuery" not in input) and ("completionResponse" not in input):
             return input
 
-        message = self._extract_query_text(input["completionQuery"])
-        if not message:
-            return input
+        user_messages = input.get("completionQuery", {}).get("messages", [])
+        ai_response = input.get("completionResponse", {})
 
         self._ensure_kiji_running()
-        result = self._check_message(message)
-        LOGGER.info("Kiji proxy result: %s", result)
 
-        if self._should_block(result):
-            return {
-                "queryGuardrailResponse": {
-                    "action": "BLOCK",
-                    "reason": "Blocked by Kiji proxy",
+        for message in user_messages:
+            result = self._check_message(message.get("content", ""))
+            LOGGER.info("Kiji proxy result: %s", result)
+
+            if self._should_block(result):
+                return {
+                    "queryGuardrailResponse": {
+                        "action": "BLOCK",
+                        "reason": "Blocked by Kiji proxy",
+                    }
                 }
-            }
 
-        return {"queryGuardrailResponse": {"action": "PASS"}}
+        return input
 
     def _ensure_kiji_running(self):
         if self._healthcheck():
@@ -67,6 +69,7 @@ class CustomGuardrail(BaseGuardrail):
 
         env = os.environ.copy()
         command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
+
         LOGGER.info("Starting Kiji proxy with command: %s", command)
         with open(os.devnull, "wb") as devnull:
             subprocess.Popen(
@@ -102,25 +105,6 @@ class CustomGuardrail(BaseGuardrail):
             return {}
 
         return json.loads(body)
-
-    def _extract_query_text(self, completion_query):
-        query = completion_query.get("query", {})
-        messages = query.get("messages", [])
-        if messages:
-            chunks = []
-            for message in messages:
-                content = message.get("content")
-                if content:
-                    chunks.append(content)
-
-                for part in message.get("parts", []):
-                    text = part.get("text")
-                    if text:
-                        chunks.append(text)
-
-            return "\n".join(chunks).strip()
-
-        return (query.get("text") or "").strip()
 
     def _should_block(self, result):
         if not isinstance(result, dict):
