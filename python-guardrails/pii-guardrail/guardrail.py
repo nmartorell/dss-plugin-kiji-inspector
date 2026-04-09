@@ -68,7 +68,7 @@ class CustomGuardrail(BaseGuardrail):
             raise RuntimeError("KIJI_HOME is not configured")
 
         env = os.environ.copy()
-        env["PROXYPORT"] = self.kiji_port
+        env["PROXY_PORT"] = self.kiji_port
 
         command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
         kiji_log_file_path = os.path.join(self.kiji_home, "kiji_proxy.log")
