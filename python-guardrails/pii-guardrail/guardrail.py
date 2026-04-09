@@ -1,15 +1,160 @@
-# This file contains the implementation of the custom guardrail pii-guardrail
+import json
 import logging
+import os
+import subprocess
+import time
+import urllib.error
+import urllib.request
+
 from dataiku.llm.guardrails import BaseGuardrail
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CustomGuardrail(BaseGuardrail):
     def set_config(self, config, plugin_config):
-        self.config = config
+        self.config = config or {}
+        self.plugin_config = plugin_config or {}
+        self.kiji_port = int(self.config.get("port", 9050))
+        self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
 
     def process(self, input, trace):
-        if "completionResponse" in input:
-            logging.info("response before processing:", input["completionResponse"]["text"])
-            # do any processing and decide on an action here
+        if "completionQuery" not in input:
+            return input
 
-        return input
+        message = self._extract_query_text(input["completionQuery"])
+        if not message:
+            return input
+
+        self._ensure_kiji_running()
+        result = self._check_message(message)
+        LOGGER.info("Kiji proxy result: %s", result)
+
+        if self._should_block(result):
+            return {
+                "queryGuardrailResponse": {
+                    "action": "BLOCK",
+                    "reason": "Blocked by Kiji proxy",
+                }
+            }
+
+        return {"queryGuardrailResponse": {"action": "PASS"}}
+
+    def _ensure_kiji_running(self):
+        if self._healthcheck():
+            return
+
+        self._start_kiji_proxy()
+
+        for _ in range(20):
+            time.sleep(0.5)
+            if self._healthcheck():
+                return
+
+        raise RuntimeError("Kiji proxy did not become healthy")
+
+    def _healthcheck(self):
+        try:
+            self._post_json("/health", {})
+            return True
+        except Exception as exc:
+            LOGGER.info("Kiji healthcheck failed: %s", exc)
+            return False
+
+    def _start_kiji_proxy(self):
+        if not self.kiji_home:
+            raise RuntimeError("KIJI_HOME is not configured")
+
+        env = os.environ.copy()
+        lib_dir = os.path.join(self.kiji_home, "lib")
+        env["LD_LIBRARY_PATH"] = lib_dir
+        env["ONNXRUNTIME_SHARED_LIBRARY_PATH"] = os.path.join(
+            lib_dir, "libonnxruntime.so.1.24.2"
+        )
+
+        command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
+        LOGGER.info("Starting Kiji proxy with command: %s", command)
+        with open(os.devnull, "wb") as devnull:
+            subprocess.Popen(
+                command,
+                cwd=self.kiji_home,
+                env=env,
+                stdout=devnull,
+                stderr=devnull,
+                start_new_session=True,
+            )
+
+    def _check_message(self, message):
+        return self._post_json("/api/pii/check", {"message": message})
+
+    def _post_json(self, path, payload):
+        url = "http://127.0.0.1:{}{}".format(self.kiji_port, path)
+        data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                body = response.read().decode("utf-8").strip()
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError("Kiji request failed: {} {}".format(exc.code, body))
+
+        if not body:
+            return {}
+
+        return json.loads(body)
+
+    def _extract_query_text(self, completion_query):
+        query = completion_query.get("query", {})
+        messages = query.get("messages", [])
+        if messages:
+            chunks = []
+            for message in messages:
+                content = message.get("content")
+                if content:
+                    chunks.append(content)
+
+                for part in message.get("parts", []):
+                    text = part.get("text")
+                    if text:
+                        chunks.append(text)
+
+            return "\n".join(chunks).strip()
+
+        return (query.get("text") or "").strip()
+
+    def _should_block(self, result):
+        if not isinstance(result, dict):
+            return False
+
+        action = str(result.get("action", "")).upper()
+        if action in {"BLOCK", "REJECT", "DENY"}:
+            return True
+        if action in {"PASS", "ALLOW", "OK"}:
+            return False
+
+        for key in (
+            "blocked",
+            "reject",
+            "denied",
+            "has_pii",
+            "contains_pii",
+            "pii_detected",
+        ):
+            if key in result:
+                return bool(result[key])
+
+        for key in ("allowed", "ok", "safe", "pass"):
+            if key in result:
+                return not bool(result[key])
+
+        for key in ("entities", "recognizedEntities", "findings", "matches"):
+            if isinstance(result.get(key), list) and len(result[key]) > 0:
+                return True
+
+        return False
