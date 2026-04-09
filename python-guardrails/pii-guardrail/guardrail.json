@@ -1,45 +1,12 @@
-/* This file is the descriptor for custom guardrail pii-guardrail */
 {
-    "meta" : {
-        // label: name of the guardrail as displayed, should be short
-        "label": "Custom guardrail pii-guardrail",
-
-        // description: longer string to help end users understand what this guardrail does.
-        "description": "This is the description of the custom guardrail pii-guardrail",
-
-        // icon: must be one of the FontAwesome 5.15.4 icons, complete list here at https://fontawesome.com/v5/docs/
-        "icon": "fas fa-magic"
-    },
-
-    // Whether this guardrail can operate on LLM queries
-    "operatesOnQueries": true,
-
-    // Whether this guardrail can operate on LLM responses
-    "operatesOnResponses": true,
-
-    // Whether this guardrail can retry processing of responses after a failure
-    "mayRequestRetryOnResponses": false,
-
-    // Whether this guardrail can reply directly to queries, skipping the rest of the guardrail pipeline
-    "mayRespondDirectlyToQueries": false,
-
-    /* params:
-    DSS will generate a form from this list of requested parameters.
-    Your component code can then access the value provided by users using the "name" field of each parameter.
-
-    Available parameter types include:
-    STRING, INT, DOUBLE, BOOLEAN, DATE, SELECT, TEXTAREA, PRESET and others.
-
-    For the full list and for more details, see the documentation: https://doc.dataiku.com/dss/latest/plugins/reference/params.html
-
-    Below is an example of a parameter field to allow choosing an LLM used to judge responses
-    */
-    "params": [
-        {
-            "name": "llm",
-            "label": "LLM",
-            "type": "LLM",
-            "description": "Should be a 'generic' LLM, not an agent or RAG"
-        }
-    ]
+  "meta": {
+    "label": "Kiji Privacy Proxy",
+    "description": "This is the description of the custom guardrail pii-guardrail",
+    "icon": "fas fa-magic"
+  },
+  "operatesOnQueries": true,
+  "operatesOnResponses": true,
+  "mayRequestRetryOnResponses": false,
+  "mayRespondDirectlyToQueries": false,
+  "params": []
 }
