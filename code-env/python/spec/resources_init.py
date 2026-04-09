@@ -16,13 +16,11 @@ DEST_DIR_NAME = "kiji-proxy"
 
 def resolve_tag_version_and_repo(repo, tag):
     """
-    Returns the resolved github repo, tag and Kiji version.
+    `kiji_tag` can be either 'latest', or a tag from github. If the tag
+    is 'latest', then we find and return the latest tag.
 
     The current Kiji release convention is that tags start with the
     character 'v' and versions do not (e.g. v0.4.9 vs 0.4.9).
-
-    `kiji_tag` can be either 'latest', or a tag from github. If the tag
-    is 'latest', then we find and return the latest tag.
     """
     if tag == "latest":
         latest_release_url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -86,7 +84,7 @@ def main():
 
     # Extract and make executable
     subprocess.check_call(
-        ["tar", "xzf", archive_path, "-C", dest_dir, "--string-components=1"]
+        ["tar", "xzf", archive_path, "-C", dest_dir, "--strip-components=1"]
     )
     os.remove(archive_path)
     os.remove(checksum_path)
