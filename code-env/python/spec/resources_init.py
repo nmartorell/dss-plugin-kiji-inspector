@@ -5,13 +5,9 @@ import shutil
 import stat
 import subprocess
 import urllib.request
+from platform import libc_ver
 
-from dataiku.code_env_resources import (
-    clear_all_env_vars,
-    delete_env_var,
-    set_env_path,
-    set_env_var,
-)
+from dataiku.code_env_resources import clear_all_env_vars, set_env_path
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
@@ -97,6 +93,13 @@ def main():
 
     make_executable(os.path.join(dest_dir, "bin", "kiji-proxy"))
     make_executable(os.path.join(dest_dir, "run.sh"))
+
+    # Set ONNX environment variables
+    set_env_path("LD_LIBRARY_PATH", f"{DEST_DIR_NAME}/lib")
+    set_env_path(
+        "ONNXRUNTIME_SHARED_LIBRARY_PATH",
+        f"{DEST_DIR_NAME}/lib/libonnxruntime.so.1.24.2",
+    )
 
     print("Installed Kiji proxy {} to {}".format(version, dest_dir))
 
