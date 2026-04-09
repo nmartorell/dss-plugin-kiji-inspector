@@ -15,7 +15,7 @@ class CustomGuardrail(BaseGuardrail):
     def set_config(self, config, plugin_config):
         self.config = config or {}
         self.plugin_config = plugin_config or {}
-        self.kiji_port = f":{self.config.get('port', '9050')}"
+        self.kiji_port = self.config.get("port", "9050")
         self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
 
     def process(self, input, trace):
@@ -68,7 +68,7 @@ class CustomGuardrail(BaseGuardrail):
             raise RuntimeError("KIJI_HOME is not configured")
 
         env = os.environ.copy()
-        env["PROXY_PORT"] = self.kiji_port
+        env["PROXY_PORT"] = f":{self.kiji_port}"
 
         command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
         kiji_log_file_path = os.path.join(self.kiji_home, "kiji_proxy.log")

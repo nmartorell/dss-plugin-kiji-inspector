@@ -99,7 +99,7 @@ def main():
         "ONNXRUNTIME_SHARED_LIBRARY_PATH",
         f"{DEST_DIR_NAME}/lib/libonnxruntime.so.1.24.2",
     )
-    set_env_var("TRANSPARENT_PROXY_ENABLED", False)
+    set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
     print("Installed Kiji proxy {} to {}".format(version, dest_dir))
 
