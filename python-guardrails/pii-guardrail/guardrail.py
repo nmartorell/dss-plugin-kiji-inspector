@@ -19,19 +19,28 @@ class CustomGuardrail(BaseGuardrail):
         self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
 
     def process(self, input, trace):
-        # Extract text to mask
-        if ("completionQuery" not in input) and ("completionResponse" not in input):
-            return input
+        # Start Kiji
+        self._ensure_kiji_running()
 
+        # Have we intercepted a query or response?
+        is_query = "completionResponse" not in input
+
+        # Extract user and ai messages
         user_messages = input.get("completionQuery", {}).get("messages", [])
         ai_response = input.get("completionResponse", {})
 
-        self._ensure_kiji_running()
+        # If it's a query, mask the pii in the messages; else revert the
+        # pii detection.
+        if is_query:
+            for message in user_messages:
+                result = self._mask_pii(message.get("content", ""))
+                message["content"] = result["masked_message"]
+                LOGGER.info("Kiji proxy result: %s", result)
 
-        for message in user_messages:
-            result = self._mask_pii(message.get("content", ""))
-            message["content"] = result["masked_message"]
-            LOGGER.info("Kiji proxy result: %s", result)
+        else:
+            # get the mappings
+            entity_mappings = self._retrieve_pii_mappings()
+            print("ENTITY_MAPPINGS: ", entity_mappings)
 
         return input
 
@@ -87,6 +96,9 @@ class CustomGuardrail(BaseGuardrail):
 
     def _mask_pii(self, message):
         return self._post_json("/api/pii/check", {"message": message})
+
+    def _retrieve_pii_mappings(self):
+        return self._post_json("/mappings", {})
 
     def _post_json(self, path, payload):
         url = "http://127.0.0.1:{}{}".format(self.kiji_port, path)
