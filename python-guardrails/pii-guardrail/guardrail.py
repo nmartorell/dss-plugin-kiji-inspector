@@ -43,7 +43,8 @@ class CustomGuardrail(BaseGuardrail):
 
         else:
             # Note: ugly repeating code, needs refactoring
-            LOGGER.info("Response detected, de-masking with Kiji. %s", user_messages)
+            LOGGER.info("Response detected, de-masking with Kiji.")
+            LOGGER.info("In-memory mappings: %s", self.pii_mappings)
 
             LOGGER.info("De-masking user messages: %s", user_messages)
             for message in user_messages:
