@@ -44,10 +44,8 @@ class CustomGuardrail(BaseGuardrail):
         else:
             # Note: ugly repeating code, needs refactoring
             LOGGER.info("Response detected, de-masking with Kiji. %s", user_messages)
-            LOGGER.info("User messages to de-mask: %s", user_messages)
-            LOGGER.info("AI response to de-mask: %s", ai_response)
 
-            # demask user messages
+            LOGGER.info("De-masking user messages: %s", user_messages)
             for message in user_messages:
                 result = self._mask_pii(message.get("content", ""))
                 if result["pii_found"]:
@@ -59,8 +57,8 @@ class CustomGuardrail(BaseGuardrail):
                         )
                     message["content"] = demasked_message
 
-            # demask
-            result = self._mask_pii(ai_response.get("content", ""))
+            LOGGER.info("De-masking AI response: %s", ai_response)
+            result = self._mask_pii(ai_response.get("text", ""))
             if result["pii_found"]:
                 detected_entities = result["entities"].values()
                 demasked_message = result["masked_message"]
@@ -68,7 +66,7 @@ class CustomGuardrail(BaseGuardrail):
                     demasked_message = demasked_message.replace(
                         entity, self.pii_mappings.get(entity, entity)
                     )
-                ai_response["content"] = demasked_message
+                ai_response["text"] = demasked_message
 
             LOGGER.info("De-masked user messages: %s", user_messages)
             LOGGER.info("De-masked ai response: %s", ai_response)
