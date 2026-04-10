@@ -4,7 +4,8 @@ import os
 import shutil
 import stat
 import subprocess
-import urllib.request
+
+import requests
 
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
 
@@ -23,8 +24,7 @@ def resolve_tag_version_and_repo(repo, tag):
     """
     if tag == "latest":
         latest_release_url = f"https://api.github.com/repos/{repo}/releases/latest"
-        with urllib.request.urlopen(latest_release_url) as r:
-            payload = json.loads(r.read().decode("utf-8"))
+        payload = requests.get(latest_release_url, timeout=30).json()
         tag = payload["tag_name"]
 
     version = tag[1:]  # remove leaving 'v' from tag
@@ -32,8 +32,10 @@ def resolve_tag_version_and_repo(repo, tag):
 
 
 def download_file(url, path):
-    with urllib.request.urlopen(url) as response, open(path, "wb") as output:
-        shutil.copyfileobj(response, output)
+    with requests.get(url, stream=True, timeout=60) as response:
+        response.raise_for_status()
+        with open(path, "wb") as output:
+            shutil.copyfileobj(response.raw, output)
 
 
 def verify_sha256(file_path, checksum_path):

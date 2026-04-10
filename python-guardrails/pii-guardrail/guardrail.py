@@ -3,9 +3,8 @@ import logging
 import os
 import subprocess
 import time
-import urllib.error
-import urllib.request
 
+import requests
 from dataiku.llm.guardrails import BaseGuardrail
 
 LOGGER = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class CustomGuardrail(BaseGuardrail):
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
         self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
-        self.pii_mappings = {}  # TODO: will this be retrieved from the proxy?
+        self.pii_mappings = {}  # TODO: will this be retrieved from the proxy? Does not work :(
 
     def process(self, input, trace):
         # Start Kiji
@@ -132,21 +131,16 @@ class CustomGuardrail(BaseGuardrail):
 
     def _post_json(self, path, payload):
         url = "http://127.0.0.1:{}{}".format(self.kiji_port, path)
-        data = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
         try:
-            with urllib.request.urlopen(request, timeout=5) as response:
-                body = response.read().decode("utf-8").strip()
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError("Kiji request failed: {} {}".format(exc.code, body))
+            response = requests.post(url, json=payload, timeout=5)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            body = ""
+            if exc.response is not None:
+                body = exc.response.text
+            raise RuntimeError("Kiji request failed: {} {}".format(url, body)) from exc
 
+        body = response.text.strip()
         if not body:
             return {}
 

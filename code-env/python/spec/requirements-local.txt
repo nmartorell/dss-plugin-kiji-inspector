@@ -3,3 +3,4 @@ https://dss.nedmartorell.fe-aws.dkucloud-dev.com/public/packages/dataiku-interna
 
 numpy==2.1.1
 pandas==2.2.2
+requests
