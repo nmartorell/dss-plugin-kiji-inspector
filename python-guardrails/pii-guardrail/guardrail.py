@@ -145,34 +145,3 @@ class CustomGuardrail(BaseGuardrail):
             return {}
 
         return json.loads(body)
-
-    def _should_block(self, result):
-        if not isinstance(result, dict):
-            return False
-
-        action = str(result.get("action", "")).upper()
-        if action in {"BLOCK", "REJECT", "DENY"}:
-            return True
-        if action in {"PASS", "ALLOW", "OK"}:
-            return False
-
-        for key in (
-            "blocked",
-            "reject",
-            "denied",
-            "has_pii",
-            "contains_pii",
-            "pii_detected",
-        ):
-            if key in result:
-                return bool(result[key])
-
-        for key in ("allowed", "ok", "safe", "pass"):
-            if key in result:
-                return not bool(result[key])
-
-        for key in ("entities", "recognizedEntities", "findings", "matches"):
-            if isinstance(result.get(key), list) and len(result[key]) > 0:
-                return True
-
-        return False
