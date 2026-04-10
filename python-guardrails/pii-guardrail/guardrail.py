@@ -16,7 +16,7 @@ class CustomGuardrail(BaseGuardrail):
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
         self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
-        self.pii_mappings = {}  # TODO: will this be retrieved from the proxy? Does not work :(
+        self.pii_mappings = {}  # TODO: will this be retrieved from the proxy?
 
     def process(self, input, trace):
         # Start Kiji
@@ -37,7 +37,9 @@ class CustomGuardrail(BaseGuardrail):
             )
             for message in user_messages:
                 result = self._mask_pii(message.get("content", ""))
-                message["content"] = result["masked_message"]
+                if result["pii_found"]:
+                    message["content"] = result["masked_message"]
+                    self.pii_mappings.update(result["entities"])
                 LOGGER.info("Kiji proxy masking result: %s", result)
 
         else:
