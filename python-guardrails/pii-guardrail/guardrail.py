@@ -51,7 +51,9 @@ class CustomGuardrail(BaseGuardrail):
             for message in user_messages:
                 demasked_message = message.get("content", "")
                 for masked_entity, demasked_entity in self.pii_mappings.items():
-                    demasked_message.replace(masked_entity, demasked_entity)
+                    demasked_message = demasked_message.replace(
+                        masked_entity, demasked_entity
+                    )
                 message["content"] = demasked_message
                 """
                 result = self._mask_pii(message.get("content", ""))
@@ -69,7 +71,9 @@ class CustomGuardrail(BaseGuardrail):
             LOGGER.info("De-masking AI response: %s", ai_response)
             demasked_message = ai_response.get("text", "")
             for masked_entity, demasked_entity in self.pii_mappings.items():
-                demasked_message.replace(masked_entity, demasked_entity)
+                demasked_message = demasked_message.replace(
+                    masked_entity, demasked_entity
+                )
             ai_response["text"] = demasked_message
             """
             result = self._mask_pii(ai_response.get("text", ""))
