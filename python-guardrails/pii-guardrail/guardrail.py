@@ -51,7 +51,7 @@ class CustomGuardrail(BaseGuardrail):
             for message in user_messages:
                 result = self._mask_pii(message.get("content", ""))
                 if result["pii_found"]:
-                    detected_entities = result["entities"].get_values()
+                    detected_entities = result["entities"].values()
                     demasked_message = result["masked_message"]
                     for entity in detected_entities:
                         demasked_message = demasked_message.replace(
@@ -62,7 +62,7 @@ class CustomGuardrail(BaseGuardrail):
             # demask
             result = self._mask_pii(ai_response.get("content", ""))
             if result["pii_found"]:
-                detected_entities = result["entities"].get_values()
+                detected_entities = result["entities"].values()
                 demasked_message = result["masked_message"]
                 for entity in detected_entities:
                     demasked_message = demasked_message.replace(
