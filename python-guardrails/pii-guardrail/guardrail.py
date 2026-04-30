@@ -32,22 +32,24 @@ class CustomGuardrail(BaseGuardrail):
         # If it's a query, mask the pii in the messages; else revert the
         # pii detection.
         if is_query:
-            LOGGER.info(
-                "Query detected, masking user messages with Kiji: %s", user_messages
-            )
+            LOGGER.info("Query detected, masking user messages with Kiji.")
+            LOGGER.info("User messages to mask: %s", user_messages)
+
             for message in user_messages:
                 result = self._mask_pii(message.get("content", ""))
                 if result["pii_found"]:
                     message["content"] = result["masked_message"]
                     self.pii_mappings.update(result["entities"])
-                LOGGER.info("Kiji proxy masking result: %s", result)
+
+            LOGGER.info("Masked user messages: %s", user_messages)
 
         else:
             # Note: ugly repeating code, needs refactoring
-            LOGGER.info("Response detected, de-masking with Kiji.")
-            LOGGER.info("In-memory mappings: %s", self.pii_mappings)
+            LOGGER.info(
+                "Response detected, de-masking AI response and user messages with Kiji."
+            )
+            LOGGER.info("User messages to de-mask: %s", user_messages)
 
-            LOGGER.info("De-masking user messages: %s", user_messages)
             for message in user_messages:
                 demasked_message = message.get("content", "")
                 for masked_entity, demasked_entity in self.pii_mappings.items():
@@ -55,37 +57,17 @@ class CustomGuardrail(BaseGuardrail):
                         masked_entity, demasked_entity
                     )
                 message["content"] = demasked_message
-                """
-                result = self._mask_pii(message.get("content", ""))
-                if result["pii_found"]:
-                    detected_entities = result["entities"].values()
-                    demasked_message = message.get("content", "")
-                    for entity in detected_entities:
-                        demasked_message = demasked_message.replace(
-                            entity, self.pii_mappings.get(entity, entity)
-                        )
-                    message["content"] = demasked_message
-                """
-            LOGGER.info("De-masked user messages: %s", user_messages)
 
-            LOGGER.info("De-masking AI response: %s", ai_response)
+            LOGGER.info("De-masked user messages: %s", user_messages)
+            LOGGER.info("AI response to de-mask: %s", ai_response)
+
             demasked_message = ai_response.get("text", "")
             for masked_entity, demasked_entity in self.pii_mappings.items():
                 demasked_message = demasked_message.replace(
                     masked_entity, demasked_entity
                 )
             ai_response["text"] = demasked_message
-            """
-            result = self._mask_pii(ai_response.get("text", ""))
-            if result["pii_found"]:
-                detected_entities = result["entities"].values()
-                demasked_message = ai_response.get("text", "")
-                for entity in detected_entities:
-                    demasked_message = demasked_message.replace(
-                        entity, self.pii_mappings.get(entity, entity)
-                    )
-                ai_response["text"] = demasked_message
-            """
+
             LOGGER.info("De-masked ai response: %s", ai_response)
 
         return input
