@@ -1,34 +1,30 @@
 import hashlib
-import json
 import os
 import shutil
 import stat
 import subprocess
 
 import requests
-
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
-DEST_DIR_NAME = "kiji-proxy"
 
 
-def resolve_tag_version_and_repo(repo, tag):
+def resolve_kiji_release_tag(repo, tag):
     """
-    `kiji_tag` can be either 'latest', or a tag from github. If the tag
-    is 'latest', then we find and return the latest tag.
+    `tag` can be either 'latest', or a tag from github:
+       https://github.com/dataiku/kiji-proxy/tags
 
-    The current Kiji release convention is that tags start with the
-    character 'v' and versions do not (e.g. v0.4.9 vs 0.4.9).
+    If `tag` 'latest', then we retrieve the latest release tag.
+    By convention, tags start with the letter 'v', e.g. 'v0.5.1'.
     """
     if tag == "latest":
         latest_release_url = f"https://api.github.com/repos/{repo}/releases/latest"
         payload = requests.get(latest_release_url, timeout=30).json()
         tag = payload["tag_name"]
 
-    version = tag[1:]  # remove leaving 'v' from tag
-    return tag, version
+    return tag
 
 
 def download_file(url, path):
@@ -60,23 +56,26 @@ def main():
     # Clear environment variables defined in previous runs
     clear_all_env_vars()
 
-    # Clear and/or create Kiji home directory
-    set_env_path("KIJI_HOME", DEST_DIR_NAME)
+    # Create Kiji home directory (and clear contents from previous runs)
+    set_env_path("KIJI_HOME", "kiji-proxy")
     dest_dir = os.environ["KIJI_HOME"]
 
     if os.path.isdir(dest_dir):
         shutil.rmtree(dest_dir)
     os.makedirs(dest_dir)
 
-    # Determine download URLs
-    tag, version = resolve_tag_version_and_repo(KIJI_REPO, KIJI_TAG)
-    archive_name = f"kiji-privacy-proxy-{version}-linux-amd64.tar.gz"
+    # Construct Kiji download URLs
+    tag = resolve_kiji_release_tag(KIJI_REPO, KIJI_TAG)
+    version = tag.lstrip("v")  # remove leading 'v' from tag (if present)
+
     base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
+    archive_name = f"kiji-privacy-proxy-{version}-linux-amd64.tar.gz"
+
     archive_url = f"{base_url}/{archive_name}"
-    checksum_url = "{}.sha256".format(archive_url)
+    checksum_url = f"{archive_url}.sha256"
 
     # Download Kiji and verify checksum
-    print(f"Downloading Kiji proxy {tag} from KIJI_REPO")
+    print(f"Downloading Kiji proxy {tag} from {KIJI_REPO}")
 
     archive_path = os.path.join(dest_dir, archive_name)
     checksum_path = archive_path + ".sha256"
@@ -96,10 +95,10 @@ def main():
     make_executable(os.path.join(dest_dir, "run.sh"))
 
     # Set ONNX environment variables
-    set_env_path("LD_LIBRARY_PATH", f"{DEST_DIR_NAME}/lib")
-    set_env_path(
+    set_env_var("LD_LIBRARY_PATH", f"{dest_dir}/lib")
+    set_env_var(
         "ONNXRUNTIME_SHARED_LIBRARY_PATH",
-        f"{DEST_DIR_NAME}/lib/libonnxruntime.so.1.24.2",
+        f"{dest_dir}/lib/libonnxruntime.so.1.24.2",
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
