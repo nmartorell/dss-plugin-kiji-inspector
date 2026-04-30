@@ -21,8 +21,10 @@ def resolve_kiji_release_tag(repo, tag):
     """
     if tag == "latest":
         latest_release_url = f"https://api.github.com/repos/{repo}/releases/latest"
-        payload = requests.get(latest_release_url, timeout=30).json()
-        tag = payload["tag_name"]
+        response = requests.get(latest_release_url, timeout=30)
+        response.raise_for_status()
+        payload = response.json()
+        tag = payload.get("tag_name")
 
     return tag
 
@@ -35,7 +37,8 @@ def download_file(url, path):
 
 
 def verify_sha256(file_path, checksum_path):
-    expected = open(checksum_path, "r").read().strip().split()[0]
+    with open(checksum_path, "r") as checksum_stream:
+        expected = checksum_stream.read().strip().split()[0]
 
     digest = hashlib.sha256()
     with open(file_path, "rb") as stream:
@@ -50,6 +53,12 @@ def verify_sha256(file_path, checksum_path):
 def make_executable(path):
     current_mode = os.stat(path).st_mode
     os.chmod(path, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def find_onnxruntime_shared_library(lib_dir):
+    for name in os.listdir(lib_dir):
+        if name.startswith("libonnxruntime.so"):
+            return os.path.join(lib_dir, name)
 
 
 def main():
@@ -95,10 +104,13 @@ def main():
     make_executable(os.path.join(dest_dir, "run.sh"))
 
     # Set ONNX environment variables
-    set_env_var("LD_LIBRARY_PATH", f"{dest_dir}/lib")
+    lib_dir = os.path.join(dest_dir, "lib")
+    onnxruntime_shared_library_path = find_onnxruntime_shared_library(lib_dir)
+
+    set_env_var("LD_LIBRARY_PATH", lib_dir)
     set_env_var(
         "ONNXRUNTIME_SHARED_LIBRARY_PATH",
-        f"{dest_dir}/lib/libonnxruntime.so.1.24.2",
+        onnxruntime_shared_library_path,
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
