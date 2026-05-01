@@ -1,8 +1,8 @@
 {
-  "id": "kiji-inspector",
+  "id": "kiji-proxy",
   "version": "0.0.1",
   "meta": {
-    "label": "Kiji inspector",
+    "label": "Kiji Proxy",
     "description": "",
     "author": "admin",
     "icon": "fas fa-kiwi-bird",

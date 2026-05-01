@@ -118,6 +118,8 @@ class CustomGuardrail(BaseGuardrail):
                 start_new_session=True,
             )
 
+    # TODO: in the future, when the Kiji proxy makes such a function available, we
+    # will use it to reverse the PII mappings (instead of using an in-memory map).
     def _retrieve_pii_mappings(self):
         return self._post_json("/mappings", {})
 
