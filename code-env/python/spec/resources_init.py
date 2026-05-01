@@ -2,7 +2,7 @@ import hashlib
 import os
 import shutil
 import stat
-import subprocess
+import tarfile
 
 import requests
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
@@ -13,18 +13,20 @@ KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-pr
 
 def resolve_kiji_release_tag(repo, tag):
     """
-    `tag` can be either 'latest', or a tag from github:
+    `tag` can be either 'latest', or a tag from GitHub:
        https://github.com/dataiku/kiji-proxy/tags
 
-    If `tag` 'latest', then we retrieve the latest release tag.
-    By convention, tags start with the letter 'v', e.g. 'v0.5.1'.
+    If `tag` is 'latest', we retrieve the latest release tag.
     """
     if tag == "latest":
         latest_release_url = f"https://api.github.com/repos/{repo}/releases/latest"
         response = requests.get(latest_release_url, timeout=30)
         response.raise_for_status()
+
         payload = response.json()
         tag = payload.get("tag_name")
+        if tag is None:
+            raise RuntimeError(f"GitHub release response for {repo} did not include a tag_name.")
 
     return tag
 
@@ -57,36 +59,39 @@ def make_executable(path):
 
 def find_onnxruntime_shared_library(lib_dir):
     for name in os.listdir(lib_dir):
-        if name.startswith("libonnxruntime.so"):
+        if name.startswith("libonnxruntime.so."):
             return os.path.join(lib_dir, name)
+
+    raise RuntimeError(f"No onnxruntime shared library found in {lib_dir}.")
 
 
 def main():
     # Clear environment variables defined in previous runs
     clear_all_env_vars()
 
-    # Create Kiji home directory (and clear contents from previous runs)
-    set_env_path("KIJI_HOME", "kiji-proxy")
-    dest_dir = os.environ["KIJI_HOME"]
+    # Clear resources directory
+    set_env_path("RESOURCES_DIR", "")
+    resources_dir = os.environ["RESOURCES_DIR"]
+    shutil.rmtree(resources_dir)
 
-    if os.path.isdir(dest_dir):
-        shutil.rmtree(dest_dir)
-    os.makedirs(dest_dir)
-
-    # Construct Kiji download URLs
+    # Construct Kiji download URLs and set KIJI_HOME
     tag = resolve_kiji_release_tag(KIJI_REPO, KIJI_TAG)
     version = tag.lstrip("v")  # remove leading 'v' from tag (if present)
 
-    base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
-    archive_name = f"kiji-privacy-proxy-{version}-linux-amd64.tar.gz"
+    kiji_dir_name = f"kiji-privacy-proxy-{version}-linux-amd64"
+    archive_name = kiji_dir_name + ".tar.gz"
 
+    base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
     archive_url = f"{base_url}/{archive_name}"
     checksum_url = f"{archive_url}.sha256"
+
+    set_env_path("KIJI_HOME", kiji_dir_name)
+    kiji_home = os.environ["KIJI_HOME"]
 
     # Download Kiji and verify checksum
     print(f"Downloading Kiji proxy {tag} from {KIJI_REPO}")
 
-    archive_path = os.path.join(dest_dir, archive_name)
+    archive_path = os.path.join(resources_dir, archive_name)
     checksum_path = archive_path + ".sha256"
 
     download_file(archive_url, archive_path)
@@ -94,17 +99,17 @@ def main():
     verify_sha256(archive_path, checksum_path)
 
     # Extract and make executable
-    subprocess.check_call(
-        ["tar", "xzf", archive_path, "-C", dest_dir, "--strip-components=1"]
-    )
+    with tarfile.open(archive_path, "r:gz") as tar:
+        tar.extractall(resources_dir)
+
     os.remove(archive_path)
     os.remove(checksum_path)
 
-    make_executable(os.path.join(dest_dir, "bin", "kiji-proxy"))
-    make_executable(os.path.join(dest_dir, "run.sh"))
+    make_executable(os.path.join(kiji_home, "bin", "kiji-proxy"))
+    make_executable(os.path.join(kiji_home, "run.sh"))
 
     # Set ONNX environment variables
-    lib_dir = os.path.join(dest_dir, "lib")
+    lib_dir = os.path.join(kiji_home, "lib")
     onnxruntime_shared_library_path = find_onnxruntime_shared_library(lib_dir)
 
     set_env_var("LD_LIBRARY_PATH", lib_dir)
@@ -114,7 +119,7 @@ def main():
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
-    print("Installed Kiji proxy {} to {}".format(version, dest_dir))
+    print(f"Installed Kiji proxy {version} to {kiji_home}")
 
 
 if __name__ == "__main__":
