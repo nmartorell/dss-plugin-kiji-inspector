@@ -72,7 +72,10 @@ def main():
     # Clear resources directory
     set_env_path("RESOURCES_DIR", "")
     resources_dir = os.environ["RESOURCES_DIR"]
-    shutil.rmtree(resources_dir)
+
+    if os.path.isdir(resources_dir):
+        shutil.rmtree(resources_dir)
+    os.makedirs(resources_dir, exist_ok=True)
 
     # Construct Kiji download URLs and set KIJI_HOME
     tag = resolve_kiji_release_tag(KIJI_REPO, KIJI_TAG)
