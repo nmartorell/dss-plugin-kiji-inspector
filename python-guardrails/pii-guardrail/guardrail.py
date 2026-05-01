@@ -13,13 +13,13 @@ class CustomGuardrail(BaseGuardrail):
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
         self.kiji_proxy = os.environ["KIJI_PROXY"]  # set in code env resources
-        self.resources_dir = os.environ["RESOURCES_DIR"]  # set in code env resources
+        self.logs_dir = os.environ["RESOURCES_DIR"]  # set in code env resources
         self.pii_mappings = {}  # TODO: in future these will be retireved from the proxy
 
     def process(self, input, trace):
         # Start Kiji
         if not kiji.client.healthcheck(self.kiji_port):
-            kiji.process.start(self.kiji_proxy, self.kiji_port)
+            kiji.process.start(self.kiji_proxy, self.kiji_port, self.logs_dir)
 
         # Have we intercepted a query or response?
         is_query = "completionResponse" not in input
