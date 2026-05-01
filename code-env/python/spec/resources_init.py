@@ -77,7 +77,7 @@ def main():
         shutil.rmtree(resources_dir)
     os.makedirs(resources_dir, exist_ok=True)
 
-    # Construct Kiji download URLs and set KIJI_HOME
+    # Construct Kiji download URLs
     tag = resolve_kiji_release_tag(KIJI_REPO, KIJI_TAG)
     version = tag.lstrip("v")  # remove leading 'v' from tag (if present)
 
@@ -87,9 +87,6 @@ def main():
     base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
     archive_url = f"{base_url}/{archive_name}"
     checksum_url = f"{archive_url}.sha256"
-
-    set_env_path("KIJI_HOME", kiji_dir_name)
-    kiji_home = os.environ["KIJI_HOME"]
 
     # Download Kiji and verify checksum
     print(f"Downloading Kiji proxy {tag} from {KIJI_REPO}")
@@ -101,18 +98,18 @@ def main():
     download_file(checksum_url, checksum_path)
     verify_sha256(archive_path, checksum_path)
 
-    # Extract and make executable
+    # Extract, make executable and set KIJI_PROXY env var
     with tarfile.open(archive_path, "r:gz") as tar:
         tar.extractall(resources_dir)
 
     os.remove(archive_path)
     os.remove(checksum_path)
 
-    make_executable(os.path.join(kiji_home, "bin", "kiji-proxy"))
-    make_executable(os.path.join(kiji_home, "run.sh"))
+    make_executable(os.path.join(resources_dir, kiji_dir_name, "bin", "kiji-proxy"))
+    set_env_path("KIJI_PROXY", os.path.join(kiji_dir_name, "bin", "kiji-proxy"))
 
     # Set ONNX environment variables
-    lib_dir = os.path.join(kiji_home, "lib")
+    lib_dir = os.path.join(resources_dir, kiji_dir_name, "lib")
     onnxruntime_shared_library = find_onnxruntime_shared_library(lib_dir)
 
     set_env_path("LD_LIBRARY_PATH", os.path.join(kiji_dir_name, "lib"))
@@ -122,7 +119,7 @@ def main():
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
-    print(f"Installed Kiji proxy {version} to {kiji_home}")
+    print(f"Installed Kiji proxy {version} to {os.path.join(resources_dir, kiji_dir_name)}")
 
 
 if __name__ == "__main__":
