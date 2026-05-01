@@ -15,8 +15,9 @@ class CustomGuardrail(BaseGuardrail):
         self.config = config
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
-        self.kiji_home = os.environ.get("KIJI_HOME")  # set in code env resources
-        self.pii_mappings = {}  # TODO: will this be retrieved from the proxy?
+        self.kiji_proxy = os.environ["KIJI_PROXY"]  # set in code env resources
+        self.resources_dir = os.environ["RESOURCES_DIR"]  # set in code env resources
+        self.pii_mappings = {}  # TODO: in future these will be retireved from the proxy
 
     def process(self, input, trace):
         # Start Kiji
@@ -36,41 +37,40 @@ class CustomGuardrail(BaseGuardrail):
             LOGGER.info("User messages to mask: %s", user_messages)
 
             for message in user_messages:
-                result = self._mask_pii(message.get("content", ""))
-                if result["pii_found"]:
-                    message["content"] = result["masked_message"]
-                    self.pii_mappings.update(result["entities"])
+                raw_content = message.get("content", "")
+                message["content"] = self._mask_pii(raw_content)
 
             LOGGER.info("Masked user messages: %s", user_messages)
 
         else:
-            # Note: ugly repeating code, needs refactoring
-            LOGGER.info(
-                "Response detected, de-masking AI response and user messages with Kiji."
-            )
+            LOGGER.info("Response detected, de-masking AI response and user messages with Kiji.")
             LOGGER.info("User messages to de-mask: %s", user_messages)
 
             for message in user_messages:
-                demasked_message = message.get("content", "")
-                for masked_entity, demasked_entity in self.pii_mappings.items():
-                    demasked_message = demasked_message.replace(
-                        masked_entity, demasked_entity
-                    )
-                message["content"] = demasked_message
+                masked_content = message.get("content", "")
+                message["content"] = self._demask_pii(masked_content)
 
             LOGGER.info("De-masked user messages: %s", user_messages)
             LOGGER.info("AI response to de-mask: %s", ai_response)
 
-            demasked_message = ai_response.get("text", "")
-            for masked_entity, demasked_entity in self.pii_mappings.items():
-                demasked_message = demasked_message.replace(
-                    masked_entity, demasked_entity
-                )
-            ai_response["text"] = demasked_message
+            masked_text = ai_response.get("text", "")
+            ai_response["text"] = self._demask_pii(masked_text)
 
             LOGGER.info("De-masked ai response: %s", ai_response)
 
         return input
+
+    def _mask_pii(self, message):
+        result = self._post_json("/api/pii/check", {"message": message})
+        if result["pii_found"]:
+            message = result["masked_message"]
+            self.pii_mappings.update(result["entities"])
+        return message
+
+    def _demask_pii(self, message):
+        for masked_entity, demasked_entity in self.pii_mappings.items():
+            message = message.replace(masked_entity, demasked_entity)
+        return message
 
     def _ensure_kiji_running(self):
         if self._healthcheck():
@@ -89,41 +89,34 @@ class CustomGuardrail(BaseGuardrail):
     def _healthcheck(self):
         try:
             result = self._post_json("/health", {})
-            return (
-                result.get("model_healthy") is True
-                and result.get("status") == "healthy"
-            )
+            return result.get("model_healthy") is True and result.get("status") == "healthy"
         except Exception as exc:
             LOGGER.info("Kiji healthcheck failed: %s", exc)
             return False
 
     def _start_kiji_proxy(self):
-        if not self.kiji_home:
+        if not self.kiji_proxy:
             raise RuntimeError("KIJI_HOME is not configured")
 
         env = os.environ.copy()
         env["PROXY_PORT"] = f":{self.kiji_port}"
 
-        command = [os.path.join(self.kiji_home, "bin", "kiji-proxy")]
-        kiji_stdout_path = os.path.join(self.kiji_home, "kiji_proxy_stdout.log")
-        kiji_stderr_path = os.path.join(self.kiji_home, "kiji_proxy_stderr.log")
+        kiji_stdout_path = os.path.join(self.resources_dir, "kiji_proxy_stdout.log")
+        kiji_stderr_path = os.path.join(self.resources_dir, "kiji_proxy_stderr.log")
 
-        LOGGER.info("Starting Kiji proxy with command: %s", command)
+        LOGGER.info("Starting Kiji proxy with command: %s", self.kiji_proxy)
         with (
             open(kiji_stdout_path, "w") as stdout,
             open(kiji_stderr_path, "w") as stderr,
         ):
             subprocess.Popen(
-                command,
+                self.kiji_proxy,
                 stdout=stdout,
                 stderr=stderr,
                 stdin=subprocess.DEVNULL,
                 env=env,
                 start_new_session=True,
             )
-
-    def _mask_pii(self, message):
-        return self._post_json("/api/pii/check", {"message": message})
 
     def _retrieve_pii_mappings(self):
         return self._post_json("/mappings", {})
