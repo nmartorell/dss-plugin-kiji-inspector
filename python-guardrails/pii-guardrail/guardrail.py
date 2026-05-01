@@ -1,10 +1,7 @@
-import json
 import logging
 import os
-import subprocess
-import time
 
-import requests
+import kijiproxy as kiji
 from dataiku.llm.guardrails import BaseGuardrail
 
 LOGGER = logging.getLogger(__name__)
@@ -21,7 +18,8 @@ class CustomGuardrail(BaseGuardrail):
 
     def process(self, input, trace):
         # Start Kiji
-        self._ensure_kiji_running()
+        if not kiji.client.healthcheck(self.kiji_port):
+            kiji.process.start(self.kiji_proxy, self.kiji_port)
 
         # Have we intercepted a query or response?
         is_query = "completionResponse" not in input
@@ -38,7 +36,7 @@ class CustomGuardrail(BaseGuardrail):
 
             for message in user_messages:
                 raw_content = message.get("content", "")
-                message["content"] = self._mask_pii(raw_content)
+                message["content"] = kiji.client.mask_pii(raw_content, self.pii_mappings, self.kiji_port)
 
             LOGGER.info("Masked user messages: %s", user_messages)
 
@@ -48,94 +46,14 @@ class CustomGuardrail(BaseGuardrail):
 
             for message in user_messages:
                 masked_content = message.get("content", "")
-                message["content"] = self._demask_pii(masked_content)
+                message["content"] = kiji.client.demask_pii(masked_content, self.pii_mappings)
 
             LOGGER.info("De-masked user messages: %s", user_messages)
             LOGGER.info("AI response to de-mask: %s", ai_response)
 
             masked_text = ai_response.get("text", "")
-            ai_response["text"] = self._demask_pii(masked_text)
+            ai_response["text"] = kiji.client.demask_pii(masked_text, self.pii_mappings)
 
             LOGGER.info("De-masked ai response: %s", ai_response)
 
         return input
-
-    def _mask_pii(self, message):
-        result = self._post_json("/api/pii/check", {"message": message})
-        if result["pii_found"]:
-            message = result["masked_message"]
-            self.pii_mappings.update(result["entities"])
-        return message
-
-    def _demask_pii(self, message):
-        for masked_entity, demasked_entity in self.pii_mappings.items():
-            message = message.replace(masked_entity, demasked_entity)
-        return message
-
-    def _ensure_kiji_running(self):
-        if self._healthcheck():
-            return
-
-        self._start_kiji_proxy()
-
-        # timeout in 10 s
-        for _ in range(20):
-            time.sleep(0.5)
-            if self._healthcheck():
-                return
-
-        raise RuntimeError("Kiji proxy did not become healthy")
-
-    def _healthcheck(self):
-        try:
-            result = self._post_json("/health", {})
-            return result.get("model_healthy") is True and result.get("status") == "healthy"
-        except Exception as exc:
-            LOGGER.info("Kiji healthcheck failed: %s", exc)
-            return False
-
-    def _start_kiji_proxy(self):
-        if not self.kiji_proxy:
-            raise RuntimeError("KIJI_HOME is not configured")
-
-        env = os.environ.copy()
-        env["PROXY_PORT"] = f":{self.kiji_port}"
-
-        kiji_stdout_path = os.path.join(self.resources_dir, "kiji_proxy_stdout.log")
-        kiji_stderr_path = os.path.join(self.resources_dir, "kiji_proxy_stderr.log")
-
-        LOGGER.info("Starting Kiji proxy with command: %s", self.kiji_proxy)
-        with (
-            open(kiji_stdout_path, "w") as stdout,
-            open(kiji_stderr_path, "w") as stderr,
-        ):
-            subprocess.Popen(
-                self.kiji_proxy,
-                stdout=stdout,
-                stderr=stderr,
-                stdin=subprocess.DEVNULL,
-                env=env,
-                start_new_session=True,
-            )
-
-    # TODO: in the future, when the Kiji proxy makes such a function available, we
-    # will use it to reverse the PII mappings (instead of using an in-memory map).
-    def _retrieve_pii_mappings(self):
-        return self._post_json("/mappings", {})
-
-    def _post_json(self, path, payload):
-        url = "http://127.0.0.1:{}{}".format(self.kiji_port, path)
-        try:
-            response = requests.post(url, json=payload, timeout=5)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            body = ""
-            if exc.response is not None:
-                body = exc.response.text
-            raise RuntimeError("Kiji request failed: {} {}".format(url, body)) from exc
-
-        body = response.text.strip()
-        if not body:
-            return {}
-
-        return json.loads(body)
