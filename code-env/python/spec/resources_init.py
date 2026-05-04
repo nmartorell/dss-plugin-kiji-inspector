@@ -5,7 +5,7 @@ import stat
 import tarfile
 
 import requests
-from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
+from dataiku.code_env_resources import clear_all_env_vars, delete_env_var, set_env_path, set_env_var
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
@@ -70,8 +70,11 @@ def main():
     clear_all_env_vars()
 
     # Clear resources directory
+    # Note: unsetting 'RESOURCES_DIR', as failure to do so leads to the failing
+    # to start.
     set_env_path("RESOURCES_DIR", "")
     resources_dir = os.environ["RESOURCES_DIR"]
+    delete_env_var("RESOURCES_DIR")
 
     if os.path.isdir(resources_dir):
         shutil.rmtree(resources_dir)
@@ -98,7 +101,7 @@ def main():
     download_file(checksum_url, checksum_path)
     verify_sha256(archive_path, checksum_path)
 
-    # Extract, make executable and set KIJI_PROXY env var
+    # Extract, make executable and set KIJI_PROXY / KIJI_LOG_DIR env vars
     with tarfile.open(archive_path, "r:gz") as tar:
         tar.extractall(resources_dir)
 
@@ -107,6 +110,7 @@ def main():
 
     make_executable(os.path.join(resources_dir, kiji_dir_name, "bin", "kiji-proxy"))
     set_env_path("KIJI_PROXY", os.path.join(kiji_dir_name, "bin", "kiji-proxy"))
+    set_env_path("KIJI_LOG_DIR", os.path.join(resources_dir, "kiji-logs"))
 
     # Set ONNX environment variables
     lib_dir = os.path.join(resources_dir, kiji_dir_name, "lib")
