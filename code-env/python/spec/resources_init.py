@@ -101,7 +101,7 @@ def main():
     download_file(checksum_url, checksum_path)
     verify_sha256(archive_path, checksum_path)
 
-    # Extract, make executable and set KIJI_PROXY / KIJI_LOG_DIR env vars
+    # Extract, make executable and set KIJI_PROXY env var
     with tarfile.open(archive_path, "r:gz") as tar:
         tar.extractall(resources_dir)
 
@@ -110,7 +110,6 @@ def main():
 
     make_executable(os.path.join(resources_dir, kiji_dir_name, "bin", "kiji-proxy"))
     set_env_path("KIJI_PROXY", os.path.join(kiji_dir_name, "bin", "kiji-proxy"))
-    set_env_path("KIJI_LOG_DIR", os.path.join(resources_dir, "kiji-logs"))
 
     # Set ONNX environment variables
     lib_dir = os.path.join(resources_dir, kiji_dir_name, "lib")
