@@ -9,7 +9,7 @@ from .client import healthcheck
 LOGGER = logging.getLogger(__name__)
 
 
-def _forward_stream(stream, log_method, stream_name):
+def _logs_streaming(stream, log_method, stream_name):
     try:
         for line in iter(stream.readline, ""):
             message = line.rstrip()
@@ -24,6 +24,8 @@ def start(kiji_path, kiji_port):
     env["PROXY_PORT"] = f":{kiji_port}"
 
     LOGGER.info("Starting Kiji proxy with command: %s", kiji_path)
+
+    # Start Kiji proxy
     process = subprocess.Popen(
         kiji_path,
         stdout=subprocess.PIPE,
@@ -34,13 +36,15 @@ def start(kiji_path, kiji_port):
         text=True,
         bufsize=1,
     )
+
+    # Stream kiji logs to DSS backend logs
     threading.Thread(
-        target=_forward_stream,
+        target=_logs_streaming,
         args=(process.stdout, LOGGER.info, "stdout"),
         daemon=True,
     ).start()
     threading.Thread(
-        target=_forward_stream,
+        target=_logs_streaming,
         args=(process.stderr, LOGGER.warning, "stderr"),
         daemon=True,
     ).start()
