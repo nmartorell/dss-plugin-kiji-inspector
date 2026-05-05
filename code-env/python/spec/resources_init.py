@@ -5,10 +5,11 @@ import stat
 import tarfile
 
 import requests
-from dataiku.code_env_resources import clear_all_env_vars, delete_env_var, set_env_path, set_env_var
+from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
+USE_CUSTOM_PII_MODEL = False
 
 
 def resolve_kiji_release_tag(repo, tag):
@@ -69,50 +70,54 @@ def main():
     # Clear environment variables defined in previous runs
     clear_all_env_vars()
 
-    # Clear resources directory
-    # Note: unsetting 'RESOURCES_DIR', as failure to do so leads to the failing
-    # to start.
-    set_env_path("RESOURCES_DIR", "")
-    resources_dir = os.environ["RESOURCES_DIR"]
-    delete_env_var("RESOURCES_DIR")
+    # Define KIJI_HOME directory
+    set_env_path("KIJI_HOME", "kiji-proxy")
+    kiji_home = os.environ["KIJI_HOME"]
 
-    if os.path.isdir(resources_dir):
-        shutil.rmtree(resources_dir)
-    os.makedirs(resources_dir, exist_ok=True)
-
-    # Construct Kiji download URLs
+    # Resolve Kiji tag and version
     tag = resolve_kiji_release_tag(KIJI_REPO, KIJI_TAG)
     version = tag.lstrip("v")  # remove leading 'v' from tag (if present)
 
-    kiji_dir_name = f"kiji-privacy-proxy-{version}-linux-amd64"
-    archive_name = kiji_dir_name + ".tar.gz"
-
-    base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
-    archive_url = f"{base_url}/{archive_name}"
-    checksum_url = f"{archive_url}.sha256"
-
     # Download Kiji and verify checksum
-    print(f"Downloading Kiji proxy {tag} from {KIJI_REPO}")
+    kiji_dir_name = f"kiji-privacy-proxy-{version}-linux-amd64"
+    kiji_proxy_path = os.path.join(kiji_home, kiji_dir_name, "bin", "kiji-proxy")
 
-    archive_path = os.path.join(resources_dir, archive_name)
-    checksum_path = archive_path + ".sha256"
+    if os.path.isfile(kiji_proxy_path):
+        print(f"Kiji proxy binary already present at {kiji_proxy_path}")
+    else:
+        print(f"Downloading Kiji proxy {tag} from {KIJI_REPO}")
 
-    download_file(archive_url, archive_path)
-    download_file(checksum_url, checksum_path)
-    verify_sha256(archive_path, checksum_path)
+        # Clear downloads from previous runs
+        if os.path.isdir(kiji_home):
+            shutil.rmtree(kiji_home)
+        os.makedirs(kiji_home, exist_ok=True)
 
-    # Extract, make executable and set KIJI_PROXY env var
-    with tarfile.open(archive_path, "r:gz") as tar:
-        tar.extractall(resources_dir)
+        # Download proxy tarball and checksum
+        archive_name = kiji_dir_name + ".tar.gz"
+        archive_path = os.path.join(kiji_home, archive_name)
+        checksum_path = archive_path + ".sha256"
 
-    os.remove(archive_path)
-    os.remove(checksum_path)
+        base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
+        archive_url = f"{base_url}/{archive_name}"
+        checksum_url = f"{archive_url}.sha256"
 
-    make_executable(os.path.join(resources_dir, kiji_dir_name, "bin", "kiji-proxy"))
-    set_env_path("KIJI_PROXY", os.path.join(kiji_dir_name, "bin", "kiji-proxy"))
+        download_file(archive_url, archive_path)
+        download_file(checksum_url, checksum_path)
+        verify_sha256(archive_path, checksum_path)
+
+        # Extract, make executable
+        with tarfile.open(archive_path, "r:gz") as tar:
+            tar.extractall()
+
+        os.remove(archive_path)
+        os.remove(checksum_path)
+
+        make_executable(kiji_proxy_path)
+
+    set_env_path("KIJI_PROXY", os.path.join("kiji-proxy", kiji_dir_name, "bin", "kiji-proxy"))
 
     # Set ONNX environment variables
-    lib_dir = os.path.join(resources_dir, kiji_dir_name, "lib")
+    lib_dir = os.path.join(kiji_home, kiji_dir_name, "lib")
     onnxruntime_shared_library = find_onnxruntime_shared_library(lib_dir)
 
     set_env_path("LD_LIBRARY_PATH", os.path.join(kiji_dir_name, "lib"))
@@ -122,7 +127,15 @@ def main():
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
-    print(f"Installed Kiji proxy {version} to {os.path.join(resources_dir, kiji_dir_name)}")
+    # Set custom model enviornment variables
+    if USE_CUSTOM_PII_MODEL:
+        set_env_path("ONNX_MODEL_DIRECTORY", "custom-pii-model")
+        custom_pii_model = os.environ["ONNX_MODEL_DIRECTORY"]
+
+        if not os.path.isdir(custom_pii_model):
+            os.makedirs(kiji_home, exist_ok=True)
+
+    print(f"Installed Kiji proxy {version} to {os.path.join(kiji_home, kiji_dir_name)}")
 
 
 if __name__ == "__main__":
