@@ -7,10 +7,18 @@ import tempfile
 
 import requests
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
+from huggingface_hub import snapshot_download
 
 KIJI_REPO = "dataiku/kiji-proxy"
 KIJI_TAG = "latest"  # "latest" or a tag from https://github.com/dataiku/kiji-proxy/tags
-USE_CUSTOM_PII_MODEL = False
+
+CUSTOM_PII_MODEL_HF_REPO = None  # if defined, a custom model is downloaded
+HF_TOKEN = None  # optional
+REQUIRED_CUSTOM_MODEL_FILES = (
+    "model_quantized.onnx",
+    "tokenizer.json",
+    "label_mappings.json",
+)
 
 
 def resolve_kiji_release_tag(repo, tag):
@@ -65,6 +73,10 @@ def find_onnxruntime_shared_library(lib_dir):
             return name
 
     raise RuntimeError(f"No onnxruntime shared library found in {lib_dir}.")
+
+
+def has_required_custom_model_files(model_dir):
+    return all(os.path.isfile(os.path.join(model_dir, name)) for name in REQUIRED_CUSTOM_MODEL_FILES)
 
 
 def main():
@@ -125,10 +137,24 @@ def main():
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
-    if USE_CUSTOM_PII_MODEL:
+    # Download custom HF model (if required)
+    if CUSTOM_PII_MODEL_HF_REPO:
         set_env_path("ONNX_MODEL_DIRECTORY", "custom-pii-model")
         custom_pii_model = os.environ["ONNX_MODEL_DIRECTORY"]
-        os.makedirs(custom_pii_model, exist_ok=True)
+
+        if has_required_custom_model_files(custom_pii_model):
+            print(f"Custom PII model already present at {custom_pii_model}")
+        else:
+            print(f"Downloading custom PII model {CUSTOM_PII_MODEL_HF_REPO} to {custom_pii_model}")
+
+            if os.path.isdir(custom_pii_model):
+                shutil.rmtree(custom_pii_model)
+
+            snapshot_download(
+                repo_id=CUSTOM_PII_MODEL_HF_REPO,
+                local_dir=custom_pii_model,
+                token=HF_TOKEN,
+            )
 
     print(f"Installed Kiji proxy {version} to {os.path.join(kiji_home, kiji_dir_name)}")
 
