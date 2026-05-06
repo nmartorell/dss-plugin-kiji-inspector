@@ -20,13 +20,16 @@ def mask_pii(message, pii_mappings, kiji_port):
     if result["pii_found"]:
         message = result["masked_message"]
         pii_mappings.update(result["entities"])
-    return message
+    return message, result["pii_found"]
 
 
 def demask_pii(message, pii_mappings):
+    pii_found = False
     for masked_entity, demasked_entity in pii_mappings.items():
-        message = message.replace(masked_entity, demasked_entity)
-    return message
+        if masked_entity in message:
+            message = message.replace(masked_entity, demasked_entity)
+            pii_found = True
+    return message, pii_found
 
 
 def _post_json(path, payload, kiji_port):
