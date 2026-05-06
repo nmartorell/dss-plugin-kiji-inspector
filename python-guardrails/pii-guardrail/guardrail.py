@@ -13,11 +13,10 @@ class CustomGuardrail(BaseGuardrail):
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
         self.kiji_proxy = os.environ.get("KIJI_PROXY")
-        if not self.kiji_proxy:
-            raise RuntimeError(
-                "KIJI_PROXY environment variable not set - has the plugin code environment been built?"
-            )
         self.pii_mappings = {}  # TODO: in future these will be retrieved from the proxy
+
+        if not self.kiji_proxy:
+            raise RuntimeError("KIJI_PROXY environment variable not set - has the plugin code environment been built?")
 
     def process(self, input, trace):
         # Start Kiji
