@@ -20,6 +20,14 @@ REQUIRED_CUSTOM_MODEL_FILES = (
     "label_mappings.json",
 )
 
+# Note on custom model:
+# I considered manual upload of the model object (in the DSS UI) vs pulling from HF.
+# The issue with manual upload comes when attempting to support containerized execution,
+# as this requires using the "copy resources from local code enviornment option". The
+# issue with this option is that it doesn't copy synmlinks, which are required for the
+# onnxruntime.so.1.
+# See: https://github.com/dataiku/dip/blob/5eb381962be131b75200a05f26f00cbf1ca866f7/dku-core/src/main/java/com/dataiku/dip/utils/DKUFileUtils.java#L846
+
 
 def resolve_kiji_release_tag(repo, tag):
     """
