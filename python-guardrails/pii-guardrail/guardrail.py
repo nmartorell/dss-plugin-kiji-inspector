@@ -29,17 +29,14 @@ class CustomGuardrail(BaseGuardrail):
             is_query = "completionResponse" not in input
             span.attributes["processing_phase"] = "query" if is_query else "response"
 
-            # Extract user and ai messages
-            user_messages = input.get("completionQuery", {}).get("messages", [])
-            ai_response = input.get("completionResponse", {})
-
-            # If it's a query, mask the pii in the messages; else revert the
-            # pii detection.
+            # If query, mask the pii in the messages; else, revert the pii masking.
             if is_query:
+                user_messages = input.get("completionQuery", {}).get("messages", [])
+
                 LOGGER.info("Query detected, masking user messages with Kiji.")
                 LOGGER.info("User messages to mask: %s", user_messages)
 
-                span.attributes["original_query_messages"] = copy.deepcopy(user_messages)
+                span.attributes["original_user_messages"] = copy.deepcopy(user_messages)
                 pii_found = False
 
                 for message in user_messages:
@@ -49,25 +46,15 @@ class CustomGuardrail(BaseGuardrail):
                     pii_found = pii_found or _pii_found
 
                 if pii_found:
-                    span.attributes["masked_query_messages"] = user_messages
+                    span.attributes["masked_user_messages"] = user_messages
                 span.attributes["pii_found"] = pii_found
 
                 LOGGER.info("Masked user messages: %s", user_messages)
 
             else:
+                ai_response = input.get("completionResponse", {})
+
                 LOGGER.info("Response detected, de-masking AI response with Kiji.")
-                # LOGGER.info("User messages to de-mask: %s", user_messages)
-
-                # span.attributes["query_messages_sent_to_llm"] = copy.deepcopy(user_messages)
-                # pii_found = False
-
-                # for message in user_messages:
-                #    masked_content = message.get("content", "")
-                #    demasked_content, _pii_found = kiji.client.demask_pii(masked_content, self.pii_mappings)
-                #    message["content"] = demasked_content
-                #    pii_found = pii_found or _pii_found
-
-                # LOGGER.info("De-masked user messages: %s", user_messages)
                 LOGGER.info("AI response to de-mask: %s", ai_response)
 
                 masked_text = ai_response.get("text", "")
