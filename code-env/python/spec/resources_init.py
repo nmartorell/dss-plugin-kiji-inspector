@@ -61,7 +61,7 @@ def make_executable(path):
 
 def find_onnxruntime_shared_library(lib_dir):
     for name in os.listdir(lib_dir):
-        if name.startswith("libonnxruntime.so."):
+        if name.startswith("libonnxruntime.so.1."):
             return name
 
     raise RuntimeError(f"No onnxruntime shared library found in {lib_dir}.")
