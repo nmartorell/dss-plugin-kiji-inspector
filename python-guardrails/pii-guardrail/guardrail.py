@@ -13,7 +13,7 @@ class CustomGuardrail(BaseGuardrail):
         self.plugin_config = plugin_config
         self.kiji_port = self.config.get("port", "9050")
         self.kiji_proxy = os.environ["KIJI_PROXY"]  # set in code env resources
-        self.pii_mappings = {}  # TODO: in future these will be retireved from the proxy
+        self.pii_mappings = {}  # TODO: in future these will be retrieved from the proxy
 
     def process(self, input, trace):
         # Start Kiji
