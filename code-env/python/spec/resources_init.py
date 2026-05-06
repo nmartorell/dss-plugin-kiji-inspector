@@ -61,7 +61,7 @@ def make_executable(path):
 
 def find_onnxruntime_shared_library(lib_dir):
     for name in os.listdir(lib_dir):
-        if name.startswith("libonnxruntime.so.1."):
+        if name.startswith("libonnxruntime.so"):
             return name
 
     raise RuntimeError(f"No onnxruntime shared library found in {lib_dir}.")
@@ -118,10 +118,10 @@ def main():
     lib_dir = os.path.join(kiji_home, kiji_dir_name, "lib")
     onnxruntime_shared_library = find_onnxruntime_shared_library(lib_dir)
 
-    set_env_path("LD_LIBRARY_PATH", os.path.join(kiji_dir_name, "lib"))
+    set_env_path("LD_LIBRARY_PATH", os.path.join("kiji-proxy", kiji_dir_name, "lib"))
     set_env_path(
         "ONNXRUNTIME_SHARED_LIBRARY_PATH",
-        os.path.join(kiji_dir_name, "lib", onnxruntime_shared_library),
+        os.path.join("kiji-proxy", kiji_dir_name, "lib", onnxruntime_shared_library),
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
