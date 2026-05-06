@@ -91,7 +91,7 @@ def main():
         # Clear downloads from previous runs
         if os.path.isdir(kiji_home):
             shutil.rmtree(kiji_home)
-        os.makedirs(kiji_home, exist_ok=True)
+        os.makedirs(kiji_home)
 
         # Download proxy tarball and checksum
         archive_name = kiji_dir_name + ".tar.gz"
@@ -128,9 +128,7 @@ def main():
     if USE_CUSTOM_PII_MODEL:
         set_env_path("ONNX_MODEL_DIRECTORY", "custom-pii-model")
         custom_pii_model = os.environ["ONNX_MODEL_DIRECTORY"]
-
-        if not os.path.isdir(custom_pii_model):
-            os.makedirs(kiji_home, exist_ok=True)
+        os.makedirs(custom_pii_model, exist_ok=True)
 
     print(f"Installed Kiji proxy {version} to {os.path.join(kiji_home, kiji_dir_name)}")
 
