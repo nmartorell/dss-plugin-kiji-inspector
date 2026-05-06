@@ -3,6 +3,7 @@ import os
 import shutil
 import stat
 import tarfile
+import tempfile
 
 import requests
 from dataiku.code_env_resources import clear_all_env_vars, set_env_path, set_env_var
@@ -94,29 +95,26 @@ def main():
 
         # Download proxy tarball and checksum
         archive_name = kiji_dir_name + ".tar.gz"
-        archive_path = os.path.join(kiji_home, archive_name)
-        checksum_path = archive_path + ".sha256"
-
         base_url = f"https://github.com/{KIJI_REPO}/releases/download/{tag}"
         archive_url = f"{base_url}/{archive_name}"
         checksum_url = f"{archive_url}.sha256"
 
-        download_file(archive_url, archive_path)
-        download_file(checksum_url, checksum_path)
-        verify_sha256(archive_path, checksum_path)
+        with tempfile.TemporaryDirectory(prefix="kiji-proxy-download-") as tmp_dir:
+            archive_path = os.path.join(tmp_dir, archive_name)
+            checksum_path = archive_path + ".sha256"
 
-        # Extract, make executable
-        with tarfile.open(archive_path, "r:gz") as tar:
-            tar.extractall()
+            download_file(archive_url, archive_path)
+            download_file(checksum_url, checksum_path)
+            verify_sha256(archive_path, checksum_path)
 
-        os.remove(archive_path)
-        os.remove(checksum_path)
+            with tarfile.open(archive_path, "r:gz") as tar:
+                tar.extractall(path=kiji_home)
 
         make_executable(kiji_proxy_path)
 
     set_env_path("KIJI_PROXY", os.path.join("kiji-proxy", kiji_dir_name, "bin", "kiji-proxy"))
 
-    # Set ONNX environment variables
+    # Set proxy environment variables
     lib_dir = os.path.join(kiji_home, kiji_dir_name, "lib")
     onnxruntime_shared_library = find_onnxruntime_shared_library(lib_dir)
 
@@ -127,7 +125,6 @@ def main():
     )
     set_env_var("TRANSPARENT_PROXY_ENABLED", "False")
 
-    # Set custom model enviornment variables
     if USE_CUSTOM_PII_MODEL:
         set_env_path("ONNX_MODEL_DIRECTORY", "custom-pii-model")
         custom_pii_model = os.environ["ONNX_MODEL_DIRECTORY"]
