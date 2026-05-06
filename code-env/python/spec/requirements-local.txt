@@ -1,0 +1,7 @@
+dataiku-api-client==14.4.3
+https://dss.nedmartorell.fe-aws.dkucloud-dev.com/public/packages/dataiku-internal-client.tar.gz
+
+numpy==2.1.1
+pandas==2.2.2
+requests
+huggingface_hub

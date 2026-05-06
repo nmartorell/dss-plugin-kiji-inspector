@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "label": "Kiji Privacy Proxy",
+    "description": "This is the description of the custom guardrail pii-guardrail",
+    "icon": "fas fa-magic"
+  },
+  "operatesOnQueries": true,
+  "operatesOnResponses": true,
+  "mayRequestRetryOnResponses": false,
+  "mayRespondDirectlyToQueries": false,
+  "params": []
+}

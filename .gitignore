@@ -9,3 +9,5 @@
 .htmlcov
 .DS_Store
 .idea
+.venv
+local-scratch.txt
